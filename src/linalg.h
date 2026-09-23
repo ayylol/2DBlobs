@@ -14,20 +14,6 @@ typedef struct {
     float x, y, z;
 } vec3_t;
 
-static inline vec2_t add_vec2(vec2_t a, vec2_t b) {
-  return (vec2_t) {
-    .x=a.x+b.x,
-    .y=a.y+b.y
-  };
-}
-static inline vec3_t add_vec3(vec3_t a, vec3_t b) {
-  return (vec3_t) {
-    .x=a.x+b.x,
-    .y=a.y+b.y,
-    .z=a.z+b.z
-  };
-}
-
 static inline vec2_t mul_vec2_scalar(vec2_t a, float s) {
   return (vec2_t) {
     .x=s*a.x,
@@ -42,6 +28,28 @@ static inline vec3_t mul_vec3_scalar(vec3_t a, float s) {
   };
 }
 
+static inline vec2_t add_vec2(vec2_t a, vec2_t b) {
+  return (vec2_t) {
+    .x=a.x+b.x,
+    .y=a.y+b.y
+  };
+}
+
+static inline vec2_t sub_vec2(vec2_t a, vec2_t b) {
+  return add_vec2(a, mul_vec2_scalar(b, -1.f));
+}
+
+static inline vec3_t add_vec3(vec3_t a, vec3_t b) {
+  return (vec3_t) {
+    .x=a.x+b.x,
+    .y=a.y+b.y,
+    .z=a.z+b.z
+  };
+}
+static inline vec3_t sub_vec3(vec3_t a, vec3_t b) {
+  return add_vec3(a, mul_vec3_scalar(b, -1.f));
+}
+
 static inline vec2_t div_vec2_scalar(vec2_t a, float s) {
   return mul_vec2_scalar(a, 1/s);
 }
@@ -50,7 +58,7 @@ static inline vec3_t div_vec3_scalar(vec3_t a, float s) {
 }
 
 static inline float dot_vec2(vec2_t a, vec2_t b) {
-  return --
+  return 
     a.x*b.x + 
     a.y*b.y;
 }
@@ -75,6 +83,13 @@ static inline ivec2_t to_screen(vec2_t a, ivec2_t dim){
   return (ivec2_t) { 
     .x = ((dim.x-dim.y)/2.f)+((a.x+1)/2.f)*dim.y,
     .y = (1-((a.y+1)/2))*dim.y
+  };
+}
+
+static inline vec2_t to_world(ivec2_t a, ivec2_t dim){
+  return (vec2_t) { 
+    .x = ((2*(a.x-((dim.x-dim.y)/2.f)))/(float)dim.y)-1,
+    .y = 2*(1-a.y/(float)dim.y)-1
   };
 }
 

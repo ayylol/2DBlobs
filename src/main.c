@@ -2,7 +2,6 @@
 #include "linalg.h"
 #include <assert.h>
 #include <bits/time.h>
-#include <string.h> // TODO: REMEMBER TO REMOVE THIS SHIT !!!!
 #include <stdint.h>
 #include <ncurses.h>
 #include <locale.h>
@@ -10,6 +9,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <math.h>
 
 // Canvas
 //#define PIXEL_WIDTH 152*2
@@ -37,22 +37,64 @@ struct timespec timespec_sub(struct timespec start, struct timespec end);
 void printw_timespec(struct timespec time);
 
 vec2_t blob_pos = {0.f,0.1f};
-vec2_t blob_positions[5] = 
-{
-{0.0f,0.0f},
-{0.5f,0.0f},
-{0.0f,0.5f},
-{-0.5f,0.0f},
-{0.0f,-0.5f},
-};
+#define BLOB_COUNT 100
+vec2_t blob_positions[100] = { };
+void add_blob(
+    float *scalar_field, int32_t w, int32_t h,
+    vec2_t blob_pos,
+    float blob_strength,
+    float blob_support
+    ){
+  int32_t blob_support_grid = (blob_support*1.25*h)/2;
+  ivec2_t blob_grid_pos = to_screen(blob_pos, (ivec2_t){w,h});
+  for (int32_t y_offset=-blob_support_grid; y_offset<blob_support_grid; y_offset++){
+    for (int32_t x_offset=-blob_support_grid; x_offset<blob_support_grid; x_offset++){
+      int32_t x = blob_grid_pos.x+x_offset;
+      int32_t y = blob_grid_pos.y+y_offset;
+      if (x<0 || y<0 || x>=w || y>=h) continue;
+
+      // Get position of slot
+      ivec2_t slot = {.x = x, .y = y};
+      vec2_t slot_world_pos = to_world(slot, (ivec2_t){.x = w, .y = h});
+
+      // Evaluate implicit
+      vec2_t blob_to_slot = sub_vec2(slot_world_pos, blob_pos);
+      float d2 = dot_vec2(blob_to_slot, blob_to_slot);
+      if (d2>blob_support*blob_support) continue;
+      // TODO: The actual calculation
+      float d = sqrt(d2);
+      float contribution;
+      if (d<blob_support/3.f){
+        contribution=1.f-3.f*pow((d/blob_support),2);
+      } else{
+        contribution=(3.f/2.f)*pow((1-(d/blob_support)),2);
+      }
+      contribution*=blob_strength;
+
+      // Add to field
+      // TODO: THIS IS SOOOO MESSSYYYYY CHANGE THIS SOMEHOW??
+      scalar_field[rawdraw_get_i(g_canvas, x,y)] += contribution;
+    }
+  }
+}
+void animate_blobs(
+    float *scalar_field, int32_t w, int32_t h
+    ){
+  for (int i=0; i<w*h; i++){ scalar_field[i]=0.f; }
+  for (int i=0; i<BLOB_COUNT; i++){
+    vec2_t move = mul_vec2_scalar(sub_vec2((vec2_t){(float)rand()/INT32_MAX, (float)rand()/INT32_MAX}, (vec2_t){0.5f,0.5f}), 2.f*0.05f);
+    blob_positions[i] = add_vec2(blob_positions[i], move);
+    vec2_t lower_bound = to_world((ivec2_t){0,h}, (ivec2_t){w,h});
+    vec2_t upper_bound = to_world((ivec2_t){w,0}, (ivec2_t){w,h});
+    if (blob_positions[i].x < lower_bound.x){ blob_positions[i].x=lower_bound.x; }
+    if (blob_positions[i].y < lower_bound.y){ blob_positions[i].y=lower_bound.y; }
+    if (blob_positions[i].x > upper_bound.x){ blob_positions[i].x=upper_bound.x; }
+    if (blob_positions[i].y > upper_bound.y){ blob_positions[i].y=upper_bound.y; }
+    add_blob(scalar_field, g_canvas.w, g_canvas.h, blob_positions[i], 3.0f, 0.3f);
+  }
+}
 
 int32_t main(int argc, char* argv[]) {
-
-  // TODO: REMOVE THIS!
-  for (int i=0; i<PIXEL_WIDTH*PIXEL_HEIGHT; i++){
-    scalar_field[i]=3.4;
-  }
-
   init_ncurses();
   int32_t count=0;
   struct timespec last_time={};
@@ -68,6 +110,8 @@ int32_t main(int argc, char* argv[]) {
     last_time=curr_time;
 
     drain_events();
+
+    animate_blobs(scalar_field, PIXEL_WIDTH, PIXEL_HEIGHT);
 
     draw_frame(g_canvas);
     ncurses_present(g_canvas);
@@ -120,8 +164,11 @@ void draw_frame(canvas_t canvas){
     for (int32_t y=0; y<canvas.h; y++){
       color_t output_color;
       float lerp_factor = (scalar_field[rawdraw_get_i(canvas, x, y)]-color_value_low)/(color_value_high-color_value_low);
-      if (lerp_factor < 0.f){
-        //lerp_factor = scalar_field[rawdraw_get_i(canvas, x, y)]/color_value_low;
+      if (lerp_factor > 1.0f){
+        output_color = 0xFF;
+      } else if (lerp_factor < 0.f){
+        lerp_factor = scalar_field[rawdraw_get_i(canvas, x, y)]/color_value_low;
+        output_color = (int32_t)(lerp_factor*0xFF)<<8*2;
       } else {
         int32_t r_lerp = lerp_factor*0xFF;
         int32_t b_lerp = (1-lerp_factor)*0xFF;
