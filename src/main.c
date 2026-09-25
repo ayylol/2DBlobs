@@ -57,7 +57,7 @@ void printw_timespec(struct timespec time);
 struct timespec timers[10] = {};
 
 vec2_t blob_pos = {0.f,0.1f};
-#define BLOB_COUNT 500
+#define BLOB_COUNT 10000
 vec2_t blob_positions[BLOB_COUNT] = { };
 
 void add_blob(
@@ -122,18 +122,6 @@ void add_blob(
       contributions = _mm512_mul_ps(contributions, _mm512_set1_ps(blob_strength));
 
       // Store contribution into scalar field only if mask allows us!
-      // TODO: LAST BIT TO MAKE SIMD
-      float contributions_out[16];
-      _mm512_storeu_ps(&contributions_out, contributions);
-      for (int i=0; i<16; i++){
-        int x=x_base+i;
-        if (x<0 || x>=w) continue;
-        assert(contributions_out[i]>=0);
-        scalar_field[rawdraw_get_i(w, x, y)] += contributions_out[i];
-
-      }
-      /*
-      // FIXME: SOMETHING WRONG WITH THIS LOADING!!
       __m512i grid_offsets = _mm512_set_epi32( 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 );
 
       __m512i x_bases = _mm512_set1_epi32(x_base);
@@ -142,9 +130,10 @@ void add_blob(
           _mm512_cmpge_epi32_mask(x_grid_positions, _mm512_set1_epi32(0)),
           _mm512_cmplt_epi32_mask(x_grid_positions, _mm512_set1_epi32(w))
         );
-      __m512 value_in_field = _mm512_mask_loadu_ps(_mm512_setzero_ps(), mask_in_grid, &scalar_field[rawdraw_get_i(w,x_base,y)]);
-      //_mm512_mask_storeu_ps(&scalar_field[rawdraw_get_i(w,x_base,y)], mask_in_grid, contributions);
-      */
+
+      __m512 value_in_field = _mm512_maskz_loadu_ps(mask_in_grid, &scalar_field[rawdraw_get_i(w,x_base,y)]);
+      value_in_field = _mm512_add_ps(contributions, value_in_field);
+      _mm512_mask_storeu_ps(&scalar_field[rawdraw_get_i(w,x_base,y)], mask_in_grid, value_in_field);
     }
   }
 }
@@ -153,7 +142,7 @@ void add_blob(
 void animate_blobs(
     float *scalar_field, int32_t w, int32_t h
     ){
-  const float blob_speed = 0.03f;
+  const float blob_speed = 0.1f;
   for (int i=0; i<w*h; i++){ scalar_field[i]=0.f; }
   for (int i=0; i<BLOB_COUNT; i++){
     vec2_t move = mul_vec2_scalar(sub_vec2((vec2_t){(float)rand()/INT32_MAX, (float)rand()/INT32_MAX}, (vec2_t){0.5f,0.5f}), 2.f*blob_speed);
@@ -164,7 +153,7 @@ void animate_blobs(
     if (blob_positions[i].y < lower_bound.y){ blob_positions[i].y=lower_bound.y; }
     if (blob_positions[i].x > upper_bound.x){ blob_positions[i].x=upper_bound.x; }
     if (blob_positions[i].y > upper_bound.y){ blob_positions[i].y=upper_bound.y; }
-    add_blob(scalar_field, g_canvas.w, g_canvas.h, blob_positions[i], 2.f, 0.25f);
+    add_blob(scalar_field, g_canvas.w, g_canvas.h, blob_positions[i], 0.2f, 0.25f);
   }
 }
 
@@ -176,6 +165,7 @@ int32_t main(int argc, char* argv[]) {
   int32_t count=0;
   struct timespec last_time={};
   struct timespec target_time = { .tv_sec = 0, .tv_nsec=16666666};
+  //struct timespec target_time = { .tv_sec = 0, .tv_nsec=33333333};
   while (1) {
     // TODO: BETTER FRAME TIMING SO THAT IT IS CONSISTENTLY 16ms!!!!
     struct timespec curr_time;

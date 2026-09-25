@@ -1,4 +1,4 @@
 #!/bin/sh
 
-make && ./rawdraw
+make release && ./rawdraw
 #make && ./rawdraw > out.ppm && sxiv out.ppm

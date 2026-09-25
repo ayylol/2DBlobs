@@ -5,7 +5,7 @@ CC:=gcc
 CFLAGS=$(WARNFLAGS) $(LIBFLAGS) -mavx512f
 WARNFLAGS:=-Wall -Wextra -Werror -Wno-unused-parameter -Wno-unused-variable -Wno-unused-but-set-variable
 DBGFLAGS:=-g
-RLSFLAGS:=-O2
+RLSFLAGS:=-O3
 LIBFLAGS:=-lncursesw -lm
 
 # Directories
