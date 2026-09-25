@@ -8,7 +8,7 @@ this will make and launch the project, if you are inside the directory for the p
 `./go.sh`
 
 ## Requirements:
-- Linux.
+- Linux, GCC and Make.
 - CPU that supports AVX512.
 - unicode font with braille characters in the terminal.
 - at least 16:9, 40 character tall terminal.
