@@ -156,7 +156,10 @@ void animate_blobs(
     if (blob_positions[i].y < lower_bound.y){ blob_positions[i].y=lower_bound.y; }
     if (blob_positions[i].x > upper_bound.x){ blob_positions[i].x=upper_bound.x; }
     if (blob_positions[i].y > upper_bound.y){ blob_positions[i].y=upper_bound.y; }
-    add_blob(scalar_field, g_canvas.w, g_canvas.h, blob_positions[i], 1.0f, 0.25f);
+    float strength = 1.0f;
+    float support = 0.25f;
+    //if (i%2==0) { strength = -0.4f; support = 0.2f; }
+    add_blob(scalar_field, g_canvas.w, g_canvas.h, blob_positions[i], strength, support);
   }
 }
 
@@ -167,15 +170,26 @@ int32_t main(int argc, char* argv[]) {
   init_ncurses();
   int32_t count=0;
   struct timespec last_time={};
+  clock_gettime(CLOCK_REALTIME, &last_time);
   struct timespec target_time = { .tv_sec = 0, .tv_nsec=16666666};
+  struct timespec sleep_resolution = { .tv_sec = 0, .tv_nsec=10};
   //struct timespec target_time = { .tv_sec = 0, .tv_nsec=33333333};
+  //
   while (1) {
-    // TODO: BETTER FRAME TIMING SO THAT IT IS CONSISTENTLY 16ms!!!!
+    // TODO: I don't think its working correctly??? not sure why but the frame rate seems to be stable
+    struct timespec elapsed;
+    struct timespec sleep_time;
     struct timespec curr_time;
-    clock_gettime(CLOCK_REALTIME, &curr_time);
-    struct timespec elapsed = timespec_sub(last_time, curr_time);
-    struct timespec sleep_time = timespec_sub(elapsed, target_time);
-    nanosleep(&sleep_time, NULL);
+    while(1){
+      clock_gettime(CLOCK_REALTIME, &curr_time);
+      elapsed = timespec_sub(last_time, curr_time);
+      sleep_time = timespec_sub(elapsed, target_time);
+      if (sleep_time.tv_sec < 0) break;
+      struct timespec sleep_time_with_give = timespec_sub(sleep_time, sleep_resolution);
+      if (sleep_time_with_give.tv_nsec > 0){
+        nanosleep(&sleep_time_with_give,NULL);
+      }
+    }
     last_time=curr_time;
 
     drain_events();
@@ -249,7 +263,7 @@ void init_ncurses(){
 
 void draw_heat_map(canvas_t canvas){
   // Draw field
-  float color_value_high = 20.f;
+  float color_value_high = 10.f;
   float color_value_low = 1.f;
   for (int32_t x=0; x<canvas.w; x++){
     for (int32_t y=0; y<canvas.h; y++){
