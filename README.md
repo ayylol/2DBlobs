@@ -1,14 +1,14 @@
-# rawdraw
+# 2D Blending Blobs
 
-Software renderer, which then draws to the terminal using ncurses
+Blending blobs in 2D written all in C, and accelerated using AVX512.
+The renderer is inspired by [Mike Acton's braille ncurses game engine](https://www.altdevarts.com/p/a-simple-main-game-loop-with-ncurses). 
 
-TODO:
-- ( ) Move ncurses stuff to a different file?
-- ( ) Make a game
-- ( ) Better 3D
-    - ( ) Perspective should account for fov and aspect ratio
-    - ( ) Some notion of meshes?
-    - ( ) Mesh animations?
-    - ( ) Vertex Colors
-- ( ) Sound
+## To run
+this will make and launch the project, if you are inside the directory for the project:
+`./go.sh`
 
+## Requirements:
+- Linux.
+- CPU that supports AVX512.
+- unicode font with braille characters in the terminal.
+- at least 16:9, 40 character tall terminal.
