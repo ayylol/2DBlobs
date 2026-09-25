@@ -56,7 +56,6 @@ struct timespec timespec_sub(struct timespec start, struct timespec end);
 void printw_timespec(struct timespec time);
 struct timespec timers[10] = {};
 
-vec2_t blob_pos = {0.f,0.1f};
 #define BLOB_COUNT 1000
 vec2_t blob_positions[BLOB_COUNT] = { };
 
@@ -75,7 +74,6 @@ void add_blob(
     if (y<0 || y>=h) continue;
     float y_world = 2*(1-y/(float)h)-1;
     float y_dot_component = (blob_pos.y - y_world)*(blob_pos.y - y_world);
-    // TODO: SIMD THIS THING!
     for (int32_t x_base_offset=-blob_support_grid; x_base_offset<blob_support_grid; x_base_offset+=16){
       // NOTE: USING AVX512!!
       int32_t x_base = blob_grid_pos.x+x_base_offset;
@@ -194,6 +192,8 @@ int32_t main(int argc, char* argv[]) {
     move(2,0);
     printw("MOUSE-BUTTON: %d", (g_mouse_bstate & BUTTON1_PRESSED)!=0);
     move(3,0);
+
+    // TODO: Display average of 10 frames
     printw("ANIMATE BLOB TIMER:");
     move(3,22);
     printw_timespec(timers[0]);
@@ -205,7 +205,9 @@ int32_t main(int argc, char* argv[]) {
     printw("PRESENT FRAME TIMER:");
     move(5,22);
     printw_timespec(timers[2]);
+
     refresh();
+
     count++;
   }
   ncurses_destroy();
@@ -246,12 +248,9 @@ void draw_frame(canvas_t canvas){
   float color_value_high = 20.f;
   float color_value_low = 1.f;
   
-  // NOTE: Needed so that the blobs don't bleed into the border.
-  // TODO: Just define left, right, top and bottom walls seperately. Will make this a lot simpler.
-  const int left_right_wall=2;
-  const int top_bottom_wall=4;
-  for (int32_t x=left_right_wall; x<canvas.w-left_right_wall; x++){
-    for (int32_t y=top_bottom_wall; y<canvas.h-top_bottom_wall; y++){
+  // NOTE: Needed so that the blobs don't bleed into the border. (left and top are inclusive, right and bottom exclusive)
+  for (int32_t x=0; x<canvas.w; x++){
+    for (int32_t y=0; y<canvas.h; y++){
       color_t output_color;
       float lerp_factor = (scalar_field[rawdraw_get_i(canvas.w, x, y)]-color_value_low)/(color_value_high-color_value_low);
       if (lerp_factor > 1.0f){
@@ -264,20 +263,32 @@ void draw_frame(canvas_t canvas){
         int32_t b_lerp = (1-lerp_factor)*0xFF;
         output_color = r_lerp + (b_lerp<<8*2);
       }
-      // TODO: DO A BETTER LERP FOR COLOR
       canvas.buffer[rawdraw_get_i(canvas.w, x, y)] = output_color;
     }
   }
-  rawdraw_line(canvas, left_right_wall-1,top_bottom_wall-1, canvas.w-left_right_wall+1,top_bottom_wall-1, g_color_palette[15]);
-  rawdraw_line(canvas, left_right_wall-1,top_bottom_wall-1, left_right_wall-1,canvas.h-top_bottom_wall+1, g_color_palette[15]);
-  rawdraw_line(canvas, left_right_wall-1,canvas.h-top_bottom_wall, canvas.w-left_right_wall+1,canvas.h-top_bottom_wall, g_color_palette[15]);
-  rawdraw_line(canvas, canvas.w-left_right_wall,top_bottom_wall-1, canvas.w-left_right_wall,canvas.h-top_bottom_wall, g_color_palette[15]);
-  /*
-  for (int32_t i=0; i<BLOB_COUNT; i++){
-    ivec2_t blob_screen = to_screen(blob_positions[i], (ivec2_t){canvas.w, canvas.h});
-    rawdraw_point(canvas, blob_screen.x, blob_screen.y, 5, g_color_palette[15]);
+
+  for (int i=0; i<BLOB_COUNT; i++){
+    ivec2_t blob_screen = to_screen(blob_positions[i], (ivec2_t){canvas.w,canvas.h});
+    rawdraw_point(canvas, blob_screen.x, blob_screen.y, 1, g_color_palette[0]);
   }
-  */
+
+  // Border
+  const int wall_left   = 2;
+  const int wall_right  = canvas.w-2;
+  const int wall_top    = 4;
+  const int wall_bot    = canvas.h-4;
+  // White Border
+  rawdraw_line(canvas, wall_left-1,wall_bot,    wall_right,wall_bot,    g_color_palette[15]);
+  rawdraw_line(canvas, wall_left-1,wall_bot,    wall_left-1,wall_top,   g_color_palette[15]);
+  rawdraw_line(canvas, wall_left-1,wall_top-1,  wall_right,wall_top-1,  g_color_palette[15]);
+  rawdraw_line(canvas, wall_right, wall_top-1,  wall_right,wall_bot+1,  g_color_palette[15]);
+
+  // Blackout outisde of white border
+  rawdraw_rect(canvas, 0,0, wall_right, wall_top-2,  g_color_palette[0]);
+  rawdraw_rect(canvas, 0,wall_bot+1, wall_right, canvas.h-1,  g_color_palette[0]);
+  rawdraw_line(canvas, 0,canvas.h-1,   0,0,   g_color_palette[0]);
+  rawdraw_line(canvas, canvas.w-1, 0,  canvas.w-1,canvas.h,  g_color_palette[0]);
+
 }
 
 // TODO: Move this to an ncurses specific file
