@@ -31,8 +31,8 @@ void rawdraw_tri(canvas_t canvas,
     int32_t x2, int32_t y2,
     color_t col);
 
-static inline uint32_t rawdraw_get_i(canvas_t canvas, int32_t x, int32_t y){
-  return x+canvas.w*y;
+static inline uint32_t rawdraw_get_i(int32_t stride, int32_t x, int32_t y){
+  return x+stride*y;
 }
 
 static inline uint32_t rawdraw_channel_red(color_t c)    { return (c>>8*0)&0xFF; }

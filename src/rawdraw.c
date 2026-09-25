@@ -29,7 +29,7 @@ rawdraw_rect(
   y0=y0>=0 ? y0 : 0;
   for (int32_t x=x0; x<=x1; x++){
     for (int32_t y=y0; y<=y1; y++){
-      canvas.buffer[rawdraw_get_i(canvas, x, y)]=col;
+      canvas.buffer[rawdraw_get_i(canvas.w, x, y)]=col;
     }
   }
 }
@@ -105,7 +105,7 @@ void rawdraw_tri(canvas_t canvas,
           is_left_of(x0,y0, x1,y1, x,y) &&
           is_left_of(x1,y1, x2,y2, x,y) &&
           is_left_of(x2,y2, x0,y0, x,y));
-      if (inside){ canvas.buffer[rawdraw_get_i(canvas, x, y)]=col; }
+      if (inside){ canvas.buffer[rawdraw_get_i(canvas.w, x, y)]=col; }
     }
   }
 #endif
@@ -150,7 +150,7 @@ void rawdraw_line(canvas_t canvas,
   for (int i=start; i<end; i++){
       int32_t x = low ? i : j;
       int32_t y = low ? j : i;
-      canvas.buffer[rawdraw_get_i(canvas, x, y)] = col;
+      canvas.buffer[rawdraw_get_i(canvas.w, x, y)] = col;
       if (D>0){
         j=j+di;
         D+=2*(d_axis1-d_axis2);

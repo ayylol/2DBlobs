@@ -2,7 +2,7 @@ TARGET:=rawdraw
 
 # Compiler Stuff
 CC:=gcc
-CFLAGS=$(WARNFLAGS) $(LIBFLAGS)
+CFLAGS=$(WARNFLAGS) $(LIBFLAGS) -mavx512f
 WARNFLAGS:=-Wall -Wextra -Werror -Wno-unused-parameter -Wno-unused-variable -Wno-unused-but-set-variable
 DBGFLAGS:=-g
 RLSFLAGS:=-O2
