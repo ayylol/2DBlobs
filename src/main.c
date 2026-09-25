@@ -26,6 +26,11 @@ float scalar_field[PIXEL_WIDTH*PIXEL_HEIGHT];
 int32_t g_mouse_x;
 int32_t g_mouse_y;
 uint64_t g_mouse_bstate;
+// 
+int32_t visualization_mode = 1;
+bool visualization_centers = false;
+bool show_stats = false;
+
 
 void init_ncurses();
 void init_color_rgb(int32_t id, uint32_t rgb);
@@ -151,7 +156,7 @@ void animate_blobs(
     if (blob_positions[i].y < lower_bound.y){ blob_positions[i].y=lower_bound.y; }
     if (blob_positions[i].x > upper_bound.x){ blob_positions[i].x=upper_bound.x; }
     if (blob_positions[i].y > upper_bound.y){ blob_positions[i].y=upper_bound.y; }
-    add_blob(scalar_field, g_canvas.w, g_canvas.h, blob_positions[i], 1.0f, 0.5f);
+    add_blob(scalar_field, g_canvas.w, g_canvas.h, blob_positions[i], 1.0f, 0.25f);
   }
 }
 
@@ -185,26 +190,28 @@ int32_t main(int argc, char* argv[]) {
         ncurses_present(g_canvas); 
     );
 
-    move(0,0);
-    printw_timespec(elapsed);
-    move(1,0);
-    printw("MOUSE: (%d,%d)", g_mouse_x, g_mouse_y);
-    move(2,0);
-    printw("MOUSE-BUTTON: %d", (g_mouse_bstate & BUTTON1_PRESSED)!=0);
-    move(3,0);
+    if (show_stats){ 
+      move(0,0);
+      printw_timespec(elapsed);
+      move(1,0);
+      printw("MOUSE: (%d,%d)", g_mouse_x, g_mouse_y);
+      move(2,0);
+      printw("MOUSE-BUTTON: %d", (g_mouse_bstate & BUTTON1_PRESSED)!=0);
+      move(3,0);
 
-    // TODO: Display average of 10 frames
-    printw("ANIMATE BLOB TIMER:");
-    move(3,22);
-    printw_timespec(timers[0]);
-    move(4,0);
-    printw("DRAW FRAME TIMER:");
-    move(4,22);
-    printw_timespec(timers[1]);
-    move(5,0);
-    printw("PRESENT FRAME TIMER:");
-    move(5,22);
-    printw_timespec(timers[2]);
+      // TODO: Display average of 10 frames
+      printw("ANIMATE BLOB TIMER:");
+      move(3,22);
+      printw_timespec(timers[0]);
+      move(4,0);
+      printw("DRAW FRAME TIMER:");
+      move(4,22);
+      printw_timespec(timers[1]);
+      move(5,0);
+      printw("PRESENT FRAME TIMER:");
+      move(5,22);
+      printw_timespec(timers[2]);
+    }
 
     refresh();
 
@@ -240,17 +247,13 @@ void init_ncurses(){
   clear();
 }
 
-void draw_frame(canvas_t canvas){
-  // Draw Canvas
-  rawdraw_fill(canvas, g_color_palette[16]);
-
+void draw_heat_map(canvas_t canvas){
   // Draw field
   float color_value_high = 20.f;
   float color_value_low = 1.f;
-  
-  // NOTE: Needed so that the blobs don't bleed into the border. (left and top are inclusive, right and bottom exclusive)
   for (int32_t x=0; x<canvas.w; x++){
     for (int32_t y=0; y<canvas.h; y++){
+      float value = scalar_field[rawdraw_get_i(canvas.w, x, y)];
       color_t output_color;
       float lerp_factor = (scalar_field[rawdraw_get_i(canvas.w, x, y)]-color_value_low)/(color_value_high-color_value_low);
       if (lerp_factor > 1.0f){
@@ -266,10 +269,55 @@ void draw_frame(canvas_t canvas){
       canvas.buffer[rawdraw_get_i(canvas.w, x, y)] = output_color;
     }
   }
+}
+void draw_isosurface(canvas_t canvas, float isosurface, color_t color){
+  for (int y=0; y<canvas.h-1; y++){
+    for (int x=0; x<canvas.w-1; x++){
+      int8_t v0=scalar_field[rawdraw_get_i(canvas.w,x,   y)]   > isosurface;
+      int8_t v1=scalar_field[rawdraw_get_i(canvas.w,x+1, y)]   > isosurface;
+      int8_t v2=scalar_field[rawdraw_get_i(canvas.w,x,   y+1)] > isosurface;
+      int8_t v3=scalar_field[rawdraw_get_i(canvas.w,x+1, y+1)] > isosurface;
 
+      int8_t case_idx = v0<<0 | v1<<1 | v2<<2 | v3<<3;
+      if (case_idx != 0b0000 && case_idx !=0b1111){
+        canvas.buffer[rawdraw_get_i(canvas.w,x,y)] = color;
+      }
+      //vec2_t base_pos = to_world((ivec2_t){x,y}, (ivec2_t){canvas.w,canvas.h});
+    }
+  }
+}
+void draw_blob_centers(canvas_t canvas, color_t color){
   for (int i=0; i<BLOB_COUNT; i++){
     ivec2_t blob_screen = to_screen(blob_positions[i], (ivec2_t){canvas.w,canvas.h});
-    rawdraw_point(canvas, blob_screen.x, blob_screen.y, 1, g_color_palette[0]);
+    rawdraw_point(canvas, blob_screen.x, blob_screen.y, 1, color);
+  }
+}
+
+void draw_frame(canvas_t canvas){
+  // Draw Canvas
+  rawdraw_fill(canvas, g_color_palette[16]);
+
+  switch (visualization_mode) {
+    case 1:
+      draw_isosurface(canvas, 10.f, 0xFF00FF);
+      break;
+    case 2:
+      for (int i=0; i<20; i++){
+        float lerp_factor = 1-i/20.f;
+        int32_t r_lerp = lerp_factor*0xFF;
+        int32_t b_lerp = (1-lerp_factor)*0xFF;
+        color_t color = r_lerp + (b_lerp<<8*2);
+        draw_isosurface(canvas, i/2.f, color);
+      }
+    break;
+    case 3:
+    default:
+      draw_heat_map(canvas);
+  }
+  if (visualization_centers){
+    color_t color = 0xcccccc;
+    if (visualization_mode == 3) { color = 0x000000; }
+    draw_blob_centers(canvas, color);
   }
 
   // Border
@@ -398,6 +446,11 @@ void drain_events() {
       case 'q':
         ncurses_destroy();
         exit(0);
+      case '1': visualization_mode = 1; break;
+      case '2': visualization_mode = 2; break;
+      case '3': visualization_mode = 3; break;
+      case ' ': visualization_centers=!visualization_centers; break;
+      case '`': show_stats=!show_stats; break;
       case KEY_MOUSE:
         MEVENT event;
         if (getmouse(&event)== OK){

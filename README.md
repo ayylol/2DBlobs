@@ -12,3 +12,9 @@ this will make and launch the project, if you are inside the directory for the p
 - CPU that supports AVX512.
 - unicode font with braille characters in the terminal.
 - at least 16:9, 40 character tall terminal.
+
+## Controls
+- 1..3:     Switch visualization modes
+- space:    Show Blob Centers
+- `:        Show Stats
+- q:        Quit
