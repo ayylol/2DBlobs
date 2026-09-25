@@ -16,8 +16,8 @@
 // Canvas
 //#define PIXEL_WIDTH 152*2
 // TODO: Allocate a max size, and dynamically use the pixels that are visible
-#define PIXEL_WIDTH 220*2
-#define PIXEL_HEIGHT 46*4
+#define PIXEL_WIDTH 142*2
+#define PIXEL_HEIGHT 40*4
 uint32_t g_pixel_buffer[PIXEL_WIDTH*PIXEL_HEIGHT];
 canvas_t g_canvas = {g_pixel_buffer, PIXEL_WIDTH, PIXEL_HEIGHT};
 float scalar_field[PIXEL_WIDTH*PIXEL_HEIGHT];
